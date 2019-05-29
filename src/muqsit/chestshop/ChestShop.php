@@ -60,7 +60,7 @@ class ChestShop extends PluginBase{
     private $menu;
 
     public function __construct(string $name){
-        $this->menu = InvMenu::create(InvMenu::TYPE_DOUBLE_CHEST)
+        $this->menu = InvMenu::create(InvMenu::TYPE_CHEST)
             ->readonly()
             ->setName($name)
             ->setListener([$this, "onServerSelectorTransaction"])//you can call class functions this way
