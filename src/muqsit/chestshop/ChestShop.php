@@ -1,6 +1,5 @@
+<?php
 
-
-		<?php
 namespace muqsit\chestshop;
 
 use muqsit\chestshop\tasks\DelayedInvMenuSendTask;
