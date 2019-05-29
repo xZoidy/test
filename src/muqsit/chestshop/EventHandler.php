@@ -26,7 +26,7 @@ class EventHandler implements Listener{
 
 	public function __construct(ChestShop $plugin, bool $enableDoubleClicks = false){
 		$this->plugin = $plugin;
-		$this->economy = EconomyAPI::getInstance();
+		
 
 		if($enableDoubleClicks){
 			$this->doubleclicks = [];
