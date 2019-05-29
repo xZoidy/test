@@ -1,4 +1,6 @@
-<?php
+
+
+		<?php
 namespace muqsit\chestshop;
 
 use muqsit\chestshop\tasks\DelayedInvMenuSendTask;
@@ -32,6 +34,7 @@ class ChestShop extends PluginBase{
 	public function onEnable() : void{
 		if(!is_dir($this->getDataFolder())){
 			mkdir($this->getDataFolder());
+			$this->getLogger()->info("ServerSelector By DayZone Succesfully Enabled!");
 		}
 
 		$this->saveResource("config.yml");
@@ -51,13 +54,47 @@ class ChestShop extends PluginBase{
 			InvMenuHandler::register($this);
 		}
 
-		$this->menu = InvMenu::create(InvMenu::TYPE_CHEST);
-		$this->menu
-			->readonly()
-			->setName("Choose A Category...")
-			->setListener([$this->eventHandler, "handleCategoryChoosing"])
-			->setInventoryCloseListener([$this->eventHandler, "handlePageCacheRemoval"]);
+		class ChestShop{
 
+    /** @var InvMenu */
+    private $menu;
+
+    public function __construct(string $name){
+        $this->menu = InvMenu::create(InvMenu::TYPE_DOUBLE_CHEST)
+            ->readonly()
+            ->setName($name)
+            ->setListener([$this, "onServerSelectorTransaction"])//you can call class functions this way
+            ->setInventoryCloseListener(function(Player $player) : void{
+                $player->sendMessage(TextFormat::GREEN . "You are being transferred...");
+            });
+    }
+
+    public function addServerToList(Item $item, string $address, int $port) : void{
+        $nbt = $item->getNamedTag();
+        $nbt->setString("Server", $address . ":" . $port);
+        $item->setNamedTag($nbt);
+        $this->menu->addItem($item);
+    }
+
+    public function onServerSelectorTransaction(Player $player, Item $itemClickedOn) : bool{
+        $player->transfer(...explode(":", $itemClickedOn->getNamedTag()->getString("Server", "play.onthefallbackserv.er:19132")));
+        return true;
+    }
+
+    public function sendTo(Player $player) : void{
+        $this->menu->send($player);
+    }
+}
+
+$gui = new ServerSelectorGUI("Server Selector");
+$gui->addServerToList(Item::get(Item::DIAMOND_PICKAXE), "play.onmyserverplea.se", 19132);
+$gui->addServerToList(Item::get(Item::IRON), "play.onmyserverplea.se", 19133);
+
+/** @var Player $player */
+$gui->sendTo($player);
+ 
+ 
+ 
 		try{
 			$this->loadShops();
 		}catch(\Throwable $t){
@@ -65,6 +102,7 @@ class ChestShop extends PluginBase{
 			throw $t;
 		}
 	}
+
 
 	public function onDisable() : void{
 		if(!$this->crashed){
@@ -74,7 +112,7 @@ class ChestShop extends PluginBase{
 		}
 	}
 
-	private function getButtonsConfig() : Config{
+	private function getButtonsConfig() :Config{
 		return $this->buttonsConfig;
 	}
 
@@ -168,85 +206,13 @@ class ChestShop extends PluginBase{
 		}
 
 		switch($args[0]){
-			case "addcat":
-			case "addcategory":
+			case "addnewkits":
 				if($sender->hasPermission("chestshop.command.admin")){
 					if(!isset($args[1])){
-						$sender->sendMessage(TF::RED."/cs addcategory <name>");
+						$sender->sendMessage(TF::RED."This command is under construction");
 						return false;
 					}
-
-					$item = $sender->getInventory()->getItemInHand();
-					if($item->isNull()){
-						$sender->sendMessage(TF::RED."Please hold an item in your hand. That item will be used as a button in the /{$label} GUI.");
-						return false;
-					}
-
-					if(!$this->addCategory($args[1], $item)){
-						$sender->sendMessage(TF::RED."A category named ".TF::clean($args[1])." already exists, please choose a new name.");
-						return false;
-					}
-
-					$sender->sendMessage(TF::GREEN."Successfully created category {$args[1]}, use /cs to view it.");
-					return true;
-				}
-				break;
-			case "removecat":
-			case "removecategory":
-				if($sender->hasPermission("chestshop.command.admin")){
-					if(!isset($args[1])){
-						$sender->sendMessage(TF::RED."/cs removecategory <name>");
-						return false;
-					}
-
-					if(!$this->removeCategory($args[1])){
-						$sender->sendMessage(TF::RED."No category named ".TF::clean($args[1])." could be found.");
-						return false;
-					}
-
-					$sender->sendMessage(TF::GREEN."Successfully removed category {$args[1]}.");
-					return true;
-				}
-				break;
-			case "categories":
-				if($sender->hasPermission("chestshop.command.admin")){
-					foreach($this->categories as $category){
-						$sender->sendMessage($category->getName());
-					}
-					return true;
-				}
-				break;
-			case "additem":
-				if($sender->hasPermission("chestshop.command.admin")){
-					if(!isset($args[1])){
-						$sender->sendMessage(TF::RED."/cs additem <category> <price>");
-						return false;
-					}
-
-					$category = $this->getCategory($args[1]);
-					if($category === null){
-						$sender->sendMessage(TF::RED."No category named ".TF::clean($args[1])." could be found.");
-						return false;
-					}
-
-					$item = $sender->getInventory()->getItemInHand();
-					if($item->isNull()){
-						$sender->sendMessage(TF::RED."Please hold an item in your hand.");
-						return false;
-					}
-
-					if(isset($args[2]) && is_numeric($args[2]) && $args[2] >= 0) {
-						$category->addItem($item, $args[2]);
-						$sender->sendMessage(TF::YELLOW."Added ".$item->getName()." to category '".$category->getName().TF::RESET.TF::YELLOW."' for \${$args[2]}.");
-						return true;
-					}
-
-					$sender->sendMessage(TF::RED."Please enter a valid number.");
-					return false;
-				}
-				break;
-		}
-
+					
 		if($sender->hasPermission("chestshop.command.admin")){
 			$sender->sendMessage(
 				TF::YELLOW.TF::BOLD."ChestShop v".$this->getDescription()->getVersion().TF::RESET."\n".
@@ -261,3 +227,8 @@ class ChestShop extends PluginBase{
 		return false;
 	}
 }
+}
+}
+			
+						
+		
